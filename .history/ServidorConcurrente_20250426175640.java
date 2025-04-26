@@ -2,7 +2,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 public class ServidorConcurrente {
-    private static final int PUERTO = 5001;
+    private static final int PUERTO = 5000;
 
     public void iniciar(int cantidadDelegados) {
         try {

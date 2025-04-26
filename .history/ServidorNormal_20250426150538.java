@@ -11,7 +11,7 @@ import javax.crypto.spec.*;
 public class ServidorNormal {
 
     public void iniciar() throws Exception {
-        ServerSocket servidor = new ServerSocket(5001);
+        ServerSocket servidor = new ServerSocket(5000);
         Socket socket = servidor.accept();
         DataInputStream in = new DataInputStream(socket.getInputStream());
         DataOutputStream out = new DataOutputStream(socket.getOutputStream());

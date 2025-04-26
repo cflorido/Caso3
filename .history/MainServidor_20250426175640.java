@@ -33,7 +33,7 @@ public class MainServidor {
                     Thread.sleep(1000);
 
                     String host = "localhost";
-                    int puerto = 5001;
+                    int puerto = 5000;
                     CyclicBarrier barrera = new CyclicBarrier(1);
                     ClienteIterativo cliente = new ClienteIterativo(host, puerto, barrera);
                     cliente.start();
@@ -67,7 +67,7 @@ public class MainServidor {
                     Thread.sleep(1000);
 
                     for (int i = 0; i < numDelegados; i++) {
-                        ClienteDelegado cliente = new ClienteDelegado("127.0.0.1", 5001);
+                        ClienteDelegado cliente = new ClienteDelegado("127.0.0.1", 5000);
                         cliente.start();
                     }
 
