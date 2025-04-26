@@ -29,6 +29,7 @@ public class ClienteIterativo extends Thread {
     @Override
     public void run() {
         try {
+            System.out.println("Esperando conexión...");
             Socket socket = new Socket(HOST, PUERTO);
             DataInputStream in = new DataInputStream(socket.getInputStream());
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());

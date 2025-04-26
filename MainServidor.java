@@ -17,10 +17,23 @@ public class MainServidor {
             case 1:
                 try {
                     ServidorNormal servidorNormal = new ServidorNormal();
-                    servidorNormal.iniciar();
+                    Thread servidorThread = new Thread(() -> {
+                        try {
+                            servidorNormal.iniciar();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    });
+                    servidorThread.start();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+                try {
+                    Thread.sleep(1000);
+
                     String host = "localhost";
                     int puerto = 5000;
-
                     CyclicBarrier barrera = new CyclicBarrier(1);
                     ClienteIterativo cliente = new ClienteIterativo(host, puerto, barrera);
                     cliente.start();
@@ -29,6 +42,7 @@ public class MainServidor {
                     e.printStackTrace();
                 }
                 break;
+
             case 2:
                 System.out.println("¿Cuántos delegados deseas usar? (4, 16, 32 o 64): ");
                 int numDelegados = scanner.nextInt();
@@ -39,7 +53,7 @@ public class MainServidor {
                 }
 
                 try {
-                    // Iniciar el servidor concurrente en su propio hilo
+
                     ServidorConcurrente servidorConcurrente = new ServidorConcurrente();
                     Thread servidorThread = new Thread(() -> {
                         try {
@@ -50,10 +64,8 @@ public class MainServidor {
                     });
                     servidorThread.start();
 
-                    // Pequeña pausa para asegurarse que el servidor esté listo
                     Thread.sleep(1000);
 
-                    // Lanzar múltiples clientes delegados
                     for (int i = 0; i < numDelegados; i++) {
                         ClienteDelegado cliente = new ClienteDelegado("127.0.0.1", 5000);
                         cliente.start();

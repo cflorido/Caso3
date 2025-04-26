@@ -16,7 +16,7 @@ public class ServidorConcurrente {
                 System.out.println("Cliente conectado. Creando delegado...");
 
                 ServidorDelegado delegado = new ServidorDelegado(socketCliente);
-                delegado.start();
+                delegado.start(); // inicia el hilo para atender ese cliente
 
                 delegadosIniciados++;
             }
