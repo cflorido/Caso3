@@ -195,7 +195,7 @@ public class Cliente {
 
         // 18. Enviar "OK"
         out.writeUTF("OK");
-        System.out.println("Cliente: envio OK");
+        System.out.println("Cliente: envié OK");
         socket.close();
     }
 }
