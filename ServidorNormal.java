@@ -8,13 +8,13 @@ import java.util.Arrays;
 import javax.crypto.*;
 import javax.crypto.spec.*;
 
-public class ServidorPrincipal {
-    public static void main(String[] args) throws Exception {
+public class ServidorNormal {
+
+    public void iniciar() throws Exception {
         ServerSocket servidor = new ServerSocket(5000);
         Socket socket = servidor.accept();
         DataInputStream in = new DataInputStream(socket.getInputStream());
         DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-
         // 0a. Leer llaves del archivo
         // Leer llave pública
         byte[] publicKeyBytes = Files.readAllBytes(Paths.get("servidor_public.key"));
@@ -145,42 +145,44 @@ public class ServidorPrincipal {
         out.writeInt(hmacTabla.length);
         out.write(hmacTabla);
 
-        // 14. Recibir id_servicio + IP_cliente cifrados + HMAC
-        int servicioCifLength = in.readInt();
-        byte[] servicioCifrado = new byte[servicioCifLength];
-        in.readFully(servicioCifrado);
+        for (int i = 0; i < 32; i++) {
+            // 14. Recibir id_servicio + IP_cliente cifrados + HMAC
+            int servicioCifLength = in.readInt();
+            byte[] servicioCifrado = new byte[servicioCifLength];
+            in.readFully(servicioCifrado);
 
-        int hmacServicioLength = in.readInt();
-        byte[] hmacServicio = new byte[hmacServicioLength];
-        in.readFully(hmacServicio);
+            int hmacServicioLength = in.readInt();
+            byte[] hmacServicio = new byte[hmacServicioLength];
+            in.readFully(hmacServicio);
 
-        // Verificar HMAC
-        byte[] hmacCheck = hmac.doFinal(servicioCifrado);
-        if (!Arrays.equals(hmacServicio, hmacCheck)) {
-            socket.close();
-            return;
+            // Verificar HMAC
+            byte[] hmacCheck = hmac.doFinal(servicioCifrado);
+            if (!Arrays.equals(hmacServicio, hmacCheck)) {
+                socket.close();
+                return;
+            }
+
+            aesCipher.init(Cipher.DECRYPT_MODE, K_AB1, ivSpec);
+            byte[] servicioYCliente = aesCipher.doFinal(servicioCifrado);
+            String recibido = new String(servicioYCliente);
+            System.out.println("Petición recibida: " + recibido);
+
+            // 16. Cifrar IP servidor + puerto servidor y mandar HMAC
+            aesCipher.init(Cipher.ENCRYPT_MODE, K_AB1, ivSpec);
+            String ipServidor = "127.0.0.1:8080";
+            byte[] respuestaCifrada = aesCipher.doFinal(ipServidor.getBytes());
+
+            byte[] hmacRespuesta = hmac.doFinal(respuestaCifrada);
+
+            out.writeInt(respuestaCifrada.length);
+            out.write(respuestaCifrada);
+            out.writeInt(hmacRespuesta.length);
+            out.write(hmacRespuesta);
+
+            // 18. Esperar "OK"
+            String finalRespuesta = in.readUTF();
+            System.out.println("Servidor: recibí " + finalRespuesta);
         }
-
-        aesCipher.init(Cipher.DECRYPT_MODE, K_AB1, ivSpec);
-        byte[] servicioYCliente = aesCipher.doFinal(servicioCifrado);
-        String recibido = new String(servicioYCliente);
-        System.out.println("Petición recibida: " + recibido);
-
-        // 16. Cifrar IP servidor + puerto servidor y mandar HMAC
-        aesCipher.init(Cipher.ENCRYPT_MODE, K_AB1, ivSpec);
-        String ipServidor = "127.0.0.1:8080";
-        byte[] respuestaCifrada = aesCipher.doFinal(ipServidor.getBytes());
-
-        byte[] hmacRespuesta = hmac.doFinal(respuestaCifrada);
-
-        out.writeInt(respuestaCifrada.length);
-        out.write(respuestaCifrada);
-        out.writeInt(hmacRespuesta.length);
-        out.write(hmacRespuesta);
-
-        // 18. Esperar "OK"
-        String finalRespuesta = in.readUTF();
-        System.out.println("Servidor: recibí " + finalRespuesta);
 
         socket.close();
         servidor.close();
