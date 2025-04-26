@@ -5,6 +5,9 @@ import java.nio.file.Paths;
 import java.security.*;
 import java.security.spec.*;
 import java.util.Arrays;
+import java.util.Random;
+import java.util.Random;
+
 import javax.crypto.*;
 import javax.crypto.interfaces.DHPublicKey;
 import javax.crypto.spec.*;
@@ -145,7 +148,20 @@ public class Cliente {
         Cipher aesCipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
         aesCipher.init(Cipher.ENCRYPT_MODE, K_AB1, ivSpec);
 
-        String peticion = "2,192.168.1.100"; // ejemplo: servicio 2, IP cliente
+        // Lista de IDs de servicio disponibles
+        String[] servicios = { "S1", "S2", "S3" };
+
+        // IP del cliente
+        String ipCliente = "192.168.1.100";
+
+        // Elegir servicio aleatorio
+        Random randomser = new Random();
+        int indiceAleatorio = randomser.nextInt(servicios.length);
+        String servicioElegido = servicios[indiceAleatorio];
+
+        // Construir la petición
+        String peticion = servicioElegido + "," + ipCliente;
+
         byte[] peticionCifrada = aesCipher.doFinal(peticion.getBytes());
 
         out.writeInt(peticionCifrada.length);

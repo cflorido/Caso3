@@ -129,7 +129,10 @@ public class ServidorPrincipal {
         Cipher aesCipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
         aesCipher.init(Cipher.ENCRYPT_MODE, K_AB1, ivSpec);
 
-        String tablaServicios = "1: Servicio_A\n2: Servicio_B\n3: Servicio_C";
+        String tablaServicios = "IdServicio Servicio IP Puerto\n" +
+                "S1 Estado_vuelo IPS1 PS1\n" +
+                "S2 Disponibilidad_vuelos IPS2 PS2\n" +
+                "S3 Costo_de_un_vuelo IPS3 PS3";
         byte[] tablaCifrada = aesCipher.doFinal(tablaServicios.getBytes());
 
         Mac hmac = Mac.getInstance("HmacSHA256");
