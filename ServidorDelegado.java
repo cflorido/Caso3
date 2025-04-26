@@ -83,6 +83,8 @@ public class ServidorDelegado extends Thread {
             out.write(Gx);
 
             // Firmar (G,P,G^x)
+            long inicioFirma = System.nanoTime();
+
             Signature firma = Signature.getInstance("SHA256withRSA");
             firma.initSign(K_w_minus);
             firma.update(G);
@@ -90,6 +92,9 @@ public class ServidorDelegado extends Thread {
             firma.update(Gx);
             byte[] firmaBytes = firma.sign();
 
+            long finFirma = System.nanoTime();
+            long tiempoFirma = finFirma - inicioFirma;
+            System.out.println("Tiempo para firmar: " + tiempoFirma + " ns");
             // Enviar firma
             out.writeInt(firmaBytes.length);
             out.write(firmaBytes);
@@ -139,8 +144,16 @@ public class ServidorDelegado extends Thread {
             // Verificar HMAC
             Mac hmac = Mac.getInstance("HmacSHA256");
             hmac.init(K_AB2);
+            long inicioVerificacion = System.nanoTime();
+
             byte[] hmacCheck = hmac.doFinal(servicioCifrado);
-            if (!Arrays.equals(hmacServicio, hmacCheck)) {
+            boolean verificado = Arrays.equals(hmacServicio, hmacCheck);
+
+            long finVerificacion = System.nanoTime();
+            long tiempoVerificacion = finVerificacion - inicioVerificacion;
+            System.out.println("Tiempo para verificar consulta: " + tiempoVerificacion + " ns");
+
+            if (!verificado) {
                 socket.close();
                 return;
             }
@@ -149,15 +162,21 @@ public class ServidorDelegado extends Thread {
             aesCipher.init(Cipher.DECRYPT_MODE, K_AB1, ivSpec);
             byte[] servicioYCliente = aesCipher.doFinal(servicioCifrado);
             String recibido = new String(servicioYCliente);
-            System.out.println("Delegado: Petición recibida: " + recibido);
+            System.out.println("Delegado: Peticion recibida: " + recibido);
 
             // 16. Cifrar IP servidor + puerto servidor y mandar HMAC
             aesCipher.init(Cipher.ENCRYPT_MODE, K_AB1, ivSpec);
             String ipServidor = "127.0.0.1:8080";
+
+            long inicioCifradoIP = System.nanoTime();
+
             byte[] respuestaCifrada = aesCipher.doFinal(ipServidor.getBytes());
 
-            byte[] hmacRespuesta = hmac.doFinal(respuestaCifrada);
+            long finCifradoIP = System.nanoTime();
+            long tiempoCifradoIP = finCifradoIP - inicioCifradoIP;
+            System.out.println("Tiempo para cifrar respuesta: " + tiempoCifradoIP + " ns");
 
+            byte[] hmacRespuesta = hmac.doFinal(respuestaCifrada);
             out.writeInt(respuestaCifrada.length);
             out.write(respuestaCifrada);
             out.writeInt(hmacRespuesta.length);
@@ -165,7 +184,7 @@ public class ServidorDelegado extends Thread {
 
             // 18. Esperar "OK"
             String finalRespuesta = in.readUTF();
-            System.out.println("Delegado: Recibí " + finalRespuesta);
+            System.out.println("Delegado: Se recibio " + finalRespuesta);
 
             socket.close();
         } catch (Exception e) {

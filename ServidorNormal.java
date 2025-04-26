@@ -78,7 +78,7 @@ public class ServidorNormal {
         out.write(P);
         out.writeInt(Gx.length);
         out.write(Gx);
-
+        long inicioFirma = System.nanoTime();
         // Firmar (G,P,G^x)
         Signature firma = Signature.getInstance("SHA256withRSA");
         firma.initSign(K_w_minus);
@@ -86,6 +86,9 @@ public class ServidorNormal {
         firma.update(P);
         firma.update(Gx);
         byte[] firmaBytes = firma.sign();
+        long finFirma = System.nanoTime();
+        long tiempoFirma = finFirma - inicioFirma;
+        System.out.println("Tiempo para firmar: " + tiempoFirma + " ns");
 
         // Enviar firma
         out.writeInt(firmaBytes.length);
@@ -133,9 +136,11 @@ public class ServidorNormal {
                 "S1 Estado_vuelo IPS1 PS1\n" +
                 "S2 Disponibilidad_vuelos IPS2 PS2\n" +
                 "S3 Costo_de_un_vuelo IPS3 PS3";
-
+        long inicioCifradoTabla = System.nanoTime();
         byte[] tablaCifrada = aesCipher.doFinal(tablaServicios.getBytes());
-
+        long finCifradoTabla = System.nanoTime();
+        long tiempoCifradoTabla = finCifradoTabla - inicioCifradoTabla;
+        System.out.println("Tiempo para cifrar la tabla: " + tiempoCifradoTabla + " ns");
         Mac hmac = Mac.getInstance("HmacSHA256");
         hmac.init(K_AB2);
         byte[] hmacTabla = hmac.doFinal(tablaCifrada);
@@ -156,7 +161,12 @@ public class ServidorNormal {
             in.readFully(hmacServicio);
 
             // Verificar HMAC
+            long inicioVerificacion = System.nanoTime();
             byte[] hmacCheck = hmac.doFinal(servicioCifrado);
+            long finVerificacion = System.nanoTime();
+            long tiempoVerificacion = finVerificacion - inicioVerificacion;
+            System.out.println("Tiempo para verificar consulta: " + tiempoVerificacion + " ns");
+
             if (!Arrays.equals(hmacServicio, hmacCheck)) {
                 socket.close();
                 return;
@@ -165,7 +175,7 @@ public class ServidorNormal {
             aesCipher.init(Cipher.DECRYPT_MODE, K_AB1, ivSpec);
             byte[] servicioYCliente = aesCipher.doFinal(servicioCifrado);
             String recibido = new String(servicioYCliente);
-            System.out.println("Petición recibida: " + recibido);
+            System.out.println("Peticion recibida: " + recibido);
 
             // 16. Cifrar IP servidor + puerto servidor y mandar HMAC
             aesCipher.init(Cipher.ENCRYPT_MODE, K_AB1, ivSpec);
@@ -181,7 +191,7 @@ public class ServidorNormal {
 
             // 18. Esperar "OK"
             String finalRespuesta = in.readUTF();
-            System.out.println("Servidor: recibí " + finalRespuesta);
+            System.out.println("Servidor: Se recibio " + finalRespuesta);
         }
 
         socket.close();

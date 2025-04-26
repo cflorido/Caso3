@@ -7,10 +7,10 @@ public class MainServidor {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
 
-        System.out.println("=== Menú de Servidor ===");
+        System.out.println("=== Menu de Servidor ===");
         System.out.println("1. Iniciar Servidor Normal");
         System.out.println("2. Iniciar Servidor Concurrente (Delegados)");
-        System.out.print("Elige una opción (1 o 2): ");
+        System.out.print("Elige una opcion: ");
         int opcion = scanner.nextInt();
 
         switch (opcion) {
@@ -44,7 +44,7 @@ public class MainServidor {
                 break;
 
             case 2:
-                System.out.println("¿Cuántos delegados deseas usar? (4, 16, 32 o 64): ");
+                System.out.println("Cuantos delegados deseas usar? (4, 16, 32 o 64): ");
                 int numDelegados = scanner.nextInt();
 
                 if (numDelegados != 4 && numDelegados != 16 && numDelegados != 32 && numDelegados != 64) {

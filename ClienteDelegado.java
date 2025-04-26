@@ -5,6 +5,8 @@ import java.nio.file.Paths;
 import java.security.*;
 import java.security.spec.*;
 import java.util.Arrays;
+import java.util.Random;
+
 import javax.crypto.*;
 import javax.crypto.spec.*;
 
@@ -137,7 +139,14 @@ public class ClienteDelegado extends Thread {
 
             // 13. Enviar id_servicio + IP_cliente cifrado + HMAC
             aesCipher.init(Cipher.ENCRYPT_MODE, K_AB1, ivSpec);
-            String solicitud = "S1 127.0.0.1";
+            String[] servicios = { "S1", "S2", "S3" };
+            String ipCliente = "192.168.1.100";
+            Random randomser = new Random();
+            int indiceAleatorio = randomser.nextInt(servicios.length);
+            String servicioElegido = servicios[indiceAleatorio];
+
+            String solicitud = servicioElegido + "," + ipCliente;
+
             byte[] solicitudCifrada = aesCipher.doFinal(solicitud.getBytes());
 
             Mac hmac = Mac.getInstance("HmacSHA256");
