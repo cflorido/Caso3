@@ -176,10 +176,27 @@ public class ServidorNormal {
             byte[] servicioYCliente = aesCipher.doFinal(servicioCifrado);
             String recibido = new String(servicioYCliente);
             System.out.println("Peticion recibida: " + recibido);
+            String[] partes = recibido.split(",");
+            String idServicio = partes[0];
 
+            String ipServidor;
+            switch (idServicio) {
+                case "S1":
+                    ipServidor = "192.168.1.1:8001"; // IP y puerto s para S1
+                    break;
+                case "S2":
+                    ipServidor = "192.168.1.2:8002"; // IP y puerto para S2
+                    break;
+                case "S3":
+                    ipServidor = "192.168.1.3:8003"; // IP y puerto para S3
+                    break;
+                default:
+                    ipServidor = "-1,-1"; // Servicio no encontrado
+                    break;
+            }
             // 16. Cifrar IP servidor + puerto servidor y mandar HMAC
             aesCipher.init(Cipher.ENCRYPT_MODE, K_AB1, ivSpec);
-            String ipServidor = "127.0.0.1:8080";
+
             byte[] respuestaCifrada = aesCipher.doFinal(ipServidor.getBytes());
 
             byte[] hmacRespuesta = hmac.doFinal(respuestaCifrada);

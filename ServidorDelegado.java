@@ -26,6 +26,7 @@ public class ServidorDelegado extends Thread {
             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
             PublicKey K_w_plus = keyFactory.generatePublic(publicSpec);
 
+            // Leer llave privada
             byte[] privateKeyBytes = Files.readAllBytes(Paths.get("servidor_private.key"));
             PKCS8EncodedKeySpec privateSpec = new PKCS8EncodedKeySpec(privateKeyBytes);
             PrivateKey K_w_minus = keyFactory.generatePrivate(privateSpec);
@@ -81,20 +82,18 @@ public class ServidorDelegado extends Thread {
             out.write(P);
             out.writeInt(Gx.length);
             out.write(Gx);
-
-            // Firmar (G,P,G^x)
             long inicioFirma = System.nanoTime();
-
+            // Firmar (G,P,G^x)
             Signature firma = Signature.getInstance("SHA256withRSA");
             firma.initSign(K_w_minus);
             firma.update(G);
             firma.update(P);
             firma.update(Gx);
             byte[] firmaBytes = firma.sign();
-
             long finFirma = System.nanoTime();
             long tiempoFirma = finFirma - inicioFirma;
             System.out.println("Tiempo para firmar: " + tiempoFirma + " ns");
+
             // Enviar firma
             out.writeInt(firmaBytes.length);
             out.write(firmaBytes);
@@ -111,6 +110,7 @@ public class ServidorDelegado extends Thread {
             byte[] Gy = new byte[GyLength];
             in.readFully(Gy);
 
+            // Calcular (G^y)^x
             KeyFactory kf = KeyFactory.getInstance("DH");
             X509EncodedKeySpec x509KeySpec = new X509EncodedKeySpec(Gy);
             PublicKey pubClientKey = kf.generatePublic(x509KeySpec);
@@ -132,7 +132,30 @@ public class ServidorDelegado extends Thread {
             in.readFully(ivBytes);
             IvParameterSpec ivSpec = new IvParameterSpec(ivBytes);
 
-            // 13. Recibir id_servicio + IP_cliente cifrados + HMAC
+            // 13. Cifrar tabla de servicios y mandar HMAC
+            Cipher aesCipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            aesCipher.init(Cipher.ENCRYPT_MODE, K_AB1, ivSpec);
+
+            String tablaServicios = "IdServicio Servicio IP Puerto\n" +
+                    "S1 Estado_vuelo IPS1 PS1\n" +
+                    "S2 Disponibilidad_vuelos IPS2 PS2\n" +
+                    "S3 Costo_de_un_vuelo IPS3 PS3";
+
+            long inicioCifradoTabla = System.nanoTime();
+            byte[] tablaCifrada = aesCipher.doFinal(tablaServicios.getBytes());
+            long finCifradoTabla = System.nanoTime();
+            long tiempoCifradoTabla = finCifradoTabla - inicioCifradoTabla;
+            System.out.println("Tiempo para cifrar la tabla: " + tiempoCifradoTabla + " ns");
+            Mac hmac = Mac.getInstance("HmacSHA256");
+            hmac.init(K_AB2);
+            byte[] hmacTabla = hmac.doFinal(tablaCifrada);
+
+            out.writeInt(tablaCifrada.length);
+            out.write(tablaCifrada);
+            out.writeInt(hmacTabla.length);
+            out.write(hmacTabla);
+
+            // 14. Recibir id_servicio + IP_cliente cifrados + HMAC
             int servicioCifLength = in.readInt();
             byte[] servicioCifrado = new byte[servicioCifLength];
             in.readFully(servicioCifrado);
@@ -142,41 +165,46 @@ public class ServidorDelegado extends Thread {
             in.readFully(hmacServicio);
 
             // Verificar HMAC
-            Mac hmac = Mac.getInstance("HmacSHA256");
-            hmac.init(K_AB2);
             long inicioVerificacion = System.nanoTime();
-
             byte[] hmacCheck = hmac.doFinal(servicioCifrado);
-            boolean verificado = Arrays.equals(hmacServicio, hmacCheck);
-
             long finVerificacion = System.nanoTime();
             long tiempoVerificacion = finVerificacion - inicioVerificacion;
             System.out.println("Tiempo para verificar consulta: " + tiempoVerificacion + " ns");
 
-            if (!verificado) {
+            if (!Arrays.equals(hmacServicio, hmacCheck)) {
                 socket.close();
                 return;
             }
 
-            Cipher aesCipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
             aesCipher.init(Cipher.DECRYPT_MODE, K_AB1, ivSpec);
             byte[] servicioYCliente = aesCipher.doFinal(servicioCifrado);
             String recibido = new String(servicioYCliente);
-            System.out.println("Delegado: Peticion recibida: " + recibido);
+            System.out.println("Peticion recibida: " + recibido);
+            String[] partes = recibido.split(",");
+            String idServicio = partes[0];
 
+            String ipServidor;
+            switch (idServicio) {
+                case "S1":
+                    ipServidor = "192.168.1.1:8001"; // IP y puerto para S1
+                    break;
+                case "S2":
+                    ipServidor = "192.168.1.2:8002"; // IP y puerto para S2
+                    break;
+                case "S3":
+                    ipServidor = "192.168.1.3:8003"; // IP y puerto para S3
+                    break;
+                default:
+                    ipServidor = "-1,-1"; // Servicio no encontrado
+                    break;
+            }
             // 16. Cifrar IP servidor + puerto servidor y mandar HMAC
             aesCipher.init(Cipher.ENCRYPT_MODE, K_AB1, ivSpec);
-            String ipServidor = "127.0.0.1:8080";
-
-            long inicioCifradoIP = System.nanoTime();
 
             byte[] respuestaCifrada = aesCipher.doFinal(ipServidor.getBytes());
 
-            long finCifradoIP = System.nanoTime();
-            long tiempoCifradoIP = finCifradoIP - inicioCifradoIP;
-            System.out.println("Tiempo para cifrar respuesta: " + tiempoCifradoIP + " ns");
-
             byte[] hmacRespuesta = hmac.doFinal(respuestaCifrada);
+
             out.writeInt(respuestaCifrada.length);
             out.write(respuestaCifrada);
             out.writeInt(hmacRespuesta.length);
@@ -184,9 +212,10 @@ public class ServidorDelegado extends Thread {
 
             // 18. Esperar "OK"
             String finalRespuesta = in.readUTF();
-            System.out.println("Delegado: Se recibio " + finalRespuesta);
+            System.out.println("Servidor: Se recibio " + finalRespuesta);
 
             socket.close();
+
         } catch (Exception e) {
             e.printStackTrace();
         }
