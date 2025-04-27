@@ -51,7 +51,7 @@ public class ClienteDelegado extends Thread {
 
             // SIMETRICO O ASIMETRICO
 
-            boolean usarCifradoAsimetrico = true; // true: RSA, false: AES
+            boolean usarCifradoAsimetrico = false; // true: RSA, false: AES
 
             byte[] respuestaReto;
             if (usarCifradoAsimetrico) {

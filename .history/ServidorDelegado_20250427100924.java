@@ -37,7 +37,7 @@ public class ServidorDelegado extends Thread {
                 socket.close();
                 return;
             }
-            boolean usarCifradoAsimetrico = true;
+            boolean usarCifradoAsimetrico = false;
 
             // 2b. Esperar el reto que envía el cliente
             int retoLength = in.readInt();

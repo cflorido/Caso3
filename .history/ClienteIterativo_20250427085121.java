@@ -1,34 +1,40 @@
 import java.io.*;
-import java.net.*;
+import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.*;
-import java.security.spec.*;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 import java.util.Random;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CyclicBarrier;
 
 import javax.crypto.*;
 import javax.crypto.interfaces.DHPublicKey;
 import javax.crypto.spec.*;
 
-public class ClienteDelegado extends Thread {
-    private String ipServidor;
-    private int puertoServidor;
+public class ClienteIterativo extends Thread {
+
+    private final String HOST;
+    private final int PUERTO;
+    private final CyclicBarrier barreraClientes;
     private static final String PUBLIC_KEY_FILE = "servidor_public.key";
 
-    public ClienteDelegado(String ipServidor, int puertoServidor) {
-        this.ipServidor = ipServidor;
-        this.puertoServidor = puertoServidor;
+    public ClienteIterativo(String host, int puerto, CyclicBarrier barreraClientes) {
+        this.HOST = host;
+        this.PUERTO = puerto;
+        this.barreraClientes = barreraClientes;
     }
 
     @Override
     public void run() {
         try {
-            Socket socket = new Socket(ipServidor, puertoServidor);
+            System.out.println("Esperando conexión...");
+            Socket socket = new Socket(HOST, PUERTO);
             DataInputStream in = new DataInputStream(socket.getInputStream());
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
 
-            // Leer llaves del cliente
+            // Leer la llave pública del servidor
             byte[] publicKeyBytes = Files.readAllBytes(Paths.get(PUBLIC_KEY_FILE));
             X509EncodedKeySpec publicSpec = new X509EncodedKeySpec(publicKeyBytes);
             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
@@ -49,23 +55,9 @@ public class ClienteDelegado extends Thread {
             byte[] rta = new byte[rtaLength];
             in.readFully(rta);
 
-            // SIMETRICO O ASIMETRICO
-
-            boolean usarCifradoAsimetrico = true; // true: RSA, false: AES
-
-            byte[] respuestaReto;
-            if (usarCifradoAsimetrico) {
-                // ----- CIFRADO ASIMÉTRICO (RSA) -----
-                Cipher rsaCipher = Cipher.getInstance("RSA");
-                rsaCipher.init(Cipher.DECRYPT_MODE, K_w_plus);
-                respuestaReto = rsaCipher.doFinal(rta);
-            } else {
-                // ----- CIFRADO SIMÉTRICO (AES) -----
-                Cipher aesCipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-                SecretKey keySimetricaTemporal = new SecretKeySpec("1234567890123456".getBytes(), "AES");
-                aesCipher.init(Cipher.DECRYPT_MODE, keySimetricaTemporal);
-                respuestaReto = aesCipher.doFinal(rta);
-            }
+            Cipher rsaCipher = Cipher.getInstance("RSA");
+            rsaCipher.init(Cipher.DECRYPT_MODE, K_w_plus);
+            byte[] respuestaReto = rsaCipher.doFinal(rta);
 
             if (Arrays.equals(reto, respuestaReto)) {
                 out.writeUTF("OK");
@@ -166,62 +158,70 @@ public class ClienteDelegado extends Thread {
             Cipher aesCipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
             aesCipher.init(Cipher.ENCRYPT_MODE, K_AB1, ivSpec);
 
-            // Elegir aleatoriamente el servicio
-            String[] servicios = { "S1", "S2", "S3" };
-            String ipCliente = "192.168.1.100";
-            Random randomser = new Random();
-            int indiceAleatorio = randomser.nextInt(servicios.length);
-            String servicioElegido = servicios[indiceAleatorio];
+            for (int i = 0; i < 32; i++) {
 
-            String peticion = servicioElegido + "," + ipCliente;
+                // Elegir aleatoriamente el servicio
+                String[] servicios = { "S1", "S2", "S3" };
+                String ipCliente = "192.168.1.100";
+                Random randomser = new Random();
+                int indiceAleatorio = randomser.nextInt(servicios.length);
+                String servicioElegido = servicios[indiceAleatorio];
 
-            // Cifrar la petición
+                String peticion = servicioElegido + "," + ipCliente;
 
-            // (cifrado simétrico AES)
-            aesCipher.init(Cipher.ENCRYPT_MODE, K_AB1, ivSpec);
-            byte[] peticionCifrada = aesCipher.doFinal(peticion.getBytes());
+                // Cifrar la petición
+                aesCipher.init(Cipher.ENCRYPT_MODE, K_AB1, ivSpec);
+                byte[] peticionCifrada = aesCipher.doFinal(peticion.getBytes());
 
-            // Enviar petición cifrada
-            out.writeInt(peticionCifrada.length);
-            out.write(peticionCifrada);
+                // Enviar petición cifrada
+                out.writeInt(peticionCifrada.length);
+                out.write(peticionCifrada);
 
-            // Hacer y enviar el HMAC de la petición
-            hmac.init(K_AB2);
-            byte[] hmacPeticion = hmac.doFinal(peticionCifrada);
-            out.writeInt(hmacPeticion.length);
-            out.write(hmacPeticion);
+                // Hacer y enviar el HMAC de la petición
+                hmac.init(K_AB2);
+                byte[] hmacPeticion = hmac.doFinal(peticionCifrada);
+                out.writeInt(hmacPeticion.length);
+                out.write(hmacPeticion);
 
-            // Recibir la respuesta cifrada
-            int respLength = in.readInt();
-            byte[] respCifrada = new byte[respLength];
-            in.readFully(respCifrada);
+                // Recibir la respuesta cifrada
+                int respLength = in.readInt();
+                byte[] respCifrada = new byte[respLength];
+                in.readFully(respCifrada);
 
-            // Recibir HMAC de la respuesta
-            int hmacRespLength = in.readInt();
-            byte[] hmacResp = new byte[hmacRespLength];
-            in.readFully(hmacResp);
+                // Recibir HMAC de la respuesta
+                int hmacRespLength = in.readInt();
+                byte[] hmacResp = new byte[hmacRespLength];
+                in.readFully(hmacResp);
 
-            // Verificar HMAC de la respuesta
-            hmac.init(K_AB2);
-            byte[] hmacRespCheck = hmac.doFinal(respCifrada);
-            if (!Arrays.equals(hmacResp, hmacRespCheck)) {
-                System.out.println("HMAC de respuesta no válido en consulta ");
+                // Verificar HMAC de la respuesta
+                hmac.init(K_AB2);
+                byte[] hmacRespCheck = hmac.doFinal(respCifrada);
+                if (!Arrays.equals(hmacResp, hmacRespCheck)) {
+                    System.out.println("HMAC de respuesta no válido en consulta " + i);
+                    break;
+                }
 
+                // Descifrar la respuesta
+                aesCipher.init(Cipher.DECRYPT_MODE, K_AB1, ivSpec);
+                byte[] respuestaFinal = aesCipher.doFinal(respCifrada);
+                String ipServidor = new String(respuestaFinal);
+
+                System.out.println("Consulta " + (i + 1) + ": IP y puerto del servicio: " + ipServidor);
+
+                // Enviar "OK"
+                out.writeUTF("OK");
             }
-
-            // Descifrar la respuesta
-            aesCipher.init(Cipher.DECRYPT_MODE, K_AB1, ivSpec);
-            byte[] respuestaFinal = aesCipher.doFinal(respCifrada);
-            String ipServidor = new String(respuestaFinal);
-
-            System.out.println("Consulta: IP y puerto del servicio: " + ipServidor);
-
-            // Enviar "OK"
-            out.writeUTF("OK");
 
             socket.close();
         } catch (Exception e) {
             e.printStackTrace();
+        } finally {
+            // Barrera para sincronizar todos los hilos
+            try {
+                barreraClientes.await();
+            } catch (InterruptedException | BrokenBarrierException e) {
+                e.printStackTrace();
+            }
         }
     }
 }

@@ -61,10 +61,10 @@ public class ClienteDelegado extends Thread {
                 respuestaReto = rsaCipher.doFinal(rta);
             } else {
                 // ----- CIFRADO SIMÉTRICO (AES) -----
-                Cipher aesCipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+                Cipher aesCipherSim = Cipher.getInstance("AES/ECB/PKCS5Padding");
                 SecretKey keySimetricaTemporal = new SecretKeySpec("1234567890123456".getBytes(), "AES");
-                aesCipher.init(Cipher.DECRYPT_MODE, keySimetricaTemporal);
-                respuestaReto = aesCipher.doFinal(rta);
+                aesCipherSim.init(Cipher.DECRYPT_MODE, keySimetricaTemporal);
+                respuestaReto = aesCipherSim.doFinal(rta);
             }
 
             if (Arrays.equals(reto, respuestaReto)) {

@@ -33,26 +33,17 @@ public class ServidorNormal {
             socket.close();
             return;
         }
-        boolean usarCifradoAsimetrico = true;
+
         // 2b. Esperar el reto que envía el cliente
         int retoLength = in.readInt();
         byte[] reto = new byte[retoLength];
         in.readFully(reto);
 
         // 3. Calcula Rta = C(K_w-, Reto)
-        byte[] rta;
-        if (usarCifradoAsimetrico) {
-            // ----- CIFRADO ASIMÉTRICO (RSA) -----
-            Cipher rsaCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-            rsaCipher.init(Cipher.ENCRYPT_MODE, K_w_minus);
-            rta = rsaCipher.doFinal(reto);
-        } else {
-            // ----- CIFRADO SIMÉTRICO (AES) -----
-            Cipher aesCipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-            SecretKey keySimetricaTemporal = new SecretKeySpec("1234567890123456".getBytes(), "AES");
-            aesCipher.init(Cipher.ENCRYPT_MODE, keySimetricaTemporal);
-            rta = aesCipher.doFinal(reto);
-        }
+        Cipher rsaCipher = Cipher.getInstance("RSA");
+        rsaCipher.init(Cipher.ENCRYPT_MODE, K_w_minus);
+        byte[] rta = rsaCipher.doFinal(reto);
+
         // 4. Enviar Rta
         out.writeInt(rta.length);
         out.write(rta);

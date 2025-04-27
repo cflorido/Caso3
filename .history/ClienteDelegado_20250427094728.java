@@ -49,23 +49,9 @@ public class ClienteDelegado extends Thread {
             byte[] rta = new byte[rtaLength];
             in.readFully(rta);
 
-            // SIMETRICO O ASIMETRICO
-
-            boolean usarCifradoAsimetrico = true; // true: RSA, false: AES
-
-            byte[] respuestaReto;
-            if (usarCifradoAsimetrico) {
-                // ----- CIFRADO ASIMÉTRICO (RSA) -----
-                Cipher rsaCipher = Cipher.getInstance("RSA");
-                rsaCipher.init(Cipher.DECRYPT_MODE, K_w_plus);
-                respuestaReto = rsaCipher.doFinal(rta);
-            } else {
-                // ----- CIFRADO SIMÉTRICO (AES) -----
-                Cipher aesCipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-                SecretKey keySimetricaTemporal = new SecretKeySpec("1234567890123456".getBytes(), "AES");
-                aesCipher.init(Cipher.DECRYPT_MODE, keySimetricaTemporal);
-                respuestaReto = aesCipher.doFinal(rta);
-            }
+            Cipher rsaCipher = Cipher.getInstance("RSA");
+            rsaCipher.init(Cipher.DECRYPT_MODE, K_w_plus);
+            byte[] respuestaReto = rsaCipher.doFinal(rta);
 
             if (Arrays.equals(reto, respuestaReto)) {
                 out.writeUTF("OK");
